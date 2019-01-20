@@ -12,4 +12,4 @@ git_url_awx: The git url.
 Author Information
 ------------------
 
-Rhys Campbell <rhys.james.campbell@googlemail.com> http://github.com/rhysmeister
+Rhys Campbell http://github.com/rhysmeister
