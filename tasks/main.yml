@@ -1,0 +1,67 @@
+---
+# tasks file for awx
+- name: Ensure epel is available
+  yum:
+    name: epel-release
+    state: present
+
+- name: Open port for web traffi
+  firewalld:
+    port: 80/tcp
+    permanent: yes
+    state: enabled
+    immediate: yes
+
+- name: Disable selinux
+  selinux:
+    state: disabled
+
+- name: Install required packages
+  yum:
+    name: "{{ installation_packages }}"
+    state: latest
+    enablerepo: cr
+
+- name: Fix docker settings for CentOS - docker-storage
+  copy:
+    content: 'DOCKER_STORAGE_OPTIONS="--storage-driver devicemapper "'
+    dest: /etc/sysconfig/docker-storage
+
+- name: Fix docker settings for CentOS -
+  copy:
+    content: 'STORAGE_DRIVER=devicemapper'
+    dest: /etc/sysconfig/docker-storage-setup
+
+- name: Ensure selinux in docker is disabled
+  lineinfile:
+    path: /usr/lib/systemd/system/docker.service
+    regexp: "^ExecStart=/usr/bin/dockerd-current"
+    line: 'ExecStart=/usr/bin/dockerd-current --selinux-enabled=false \'
+  register: reload_docker
+  #notify: reload docker
+
+- name: Reload daemons
+  command: systemctl daemon-reload
+  when: reload_docker.changed == True
+
+#- meta: flush_handlers # does not work!
+
+- name: Start and enable docker service
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Checkout from AWX git
+  git:
+    repo: "{{git_url_awx }}"
+    dest: /home/vagrant/awx
+  become: no
+
+- name: Run ansible playbook for awx setup
+  command: ansible-playbook -i inventory install.yml
+  args:
+    chdir: /home/vagrant/awx/installer/
+
+- debug:
+    msg: "AWX  installation will take about ten minutes to complete. Login with u: admin p: password when ready at http://tower1."
